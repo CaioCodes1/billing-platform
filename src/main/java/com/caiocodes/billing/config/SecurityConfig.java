@@ -10,7 +10,6 @@ import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.core.env.Environment;
 import org.springframework.http.HttpMethod;
-import org.springframework.security.config.Customizer;
 import org.springframework.security.config.annotation.method.configuration.EnableMethodSecurity;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.http.SessionCreationPolicy;
@@ -89,7 +88,13 @@ public class SecurityConfig {
                         .anyRequest().authenticated())
                 .oauth2ResourceServer(oauth -> oauth
                         .jwt(jwt -> jwt.jwtAuthenticationConverter(conversor)))
-                .httpBasic(Customizer.withDefaults())
+                // Sem httpBasic e sem formLogin de propósito: o JWT é o único
+                // caminho de autenticação. Basic aqui não tem quem o atenda
+                // (não há UserDetailsService), então só produziria 401 — mas
+                // deixá-lo ligado adiciona um filtro inútil, anuncia
+                // "WWW-Authenticate: Basic" a quem sonda a API, e vira armadilha:
+                // no dia em que alguém registrar um UserDetailsService por outro
+                // motivo, o Basic silenciosamente vira uma segunda porta.
                 .build();
     }
 

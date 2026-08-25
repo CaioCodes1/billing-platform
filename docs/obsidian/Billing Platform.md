@@ -52,13 +52,35 @@ flowchart LR
 - [x] **Fase 9** — Dashboard financeiro
 - [x] **Fase 10** — Outbox + Spring Mail
 
-**175 testes verdes** — 104 unitários (~15 s, sem Docker) e 71 de integração
-contra Postgres real. Cobertura **88,9%**, com gate de 80% no build.
+**187 testes verdes** — 104 unitários (~15 s, sem Docker) e 83 de integração
+contra Postgres real. Cobertura **89,2%**, com gate de 80% no build.
 
-> [!warning] Pendências
-> - Primeiro commit ainda **não feito** (`git init` está feito, nada commitado)
-> - Publicar em `github.com/CaioCodes1/`
-> - `bank-api` continua sem git — mesmo risco que este projeto tinha
+> [!success] Publicado
+> https://github.com/CaioCodes1/billing-platform — público, 25/08/2026
+
+> [!danger] O que a auditoria de segurança encontrou
+> 12 testes que **atacam** a API (token forjado, `alg: none`, payload trocado,
+> escalada de papel) + Semgrep em container: **153 regras, 105 arquivos, 0
+> achados**. Mas dois testes só passaram depois de expor problema real:
+>
+> - **`httpBasic` ligado numa API que só fala JWT.** Não abria porta — mas só
+>   porque o `JwtDecoder` faz a auto-configuração do usuário padrão recuar.
+>   Proteção por efeito colateral de outra biblioteca, não por decisão.
+>   Removido.
+> - **O e-mail derrubava o health check.** `MailHealthIndicator` abre SMTP a
+>   cada `/actuator/health`. Mailpit fora → 503 → em produção o orquestrador
+>   tiraria a API de rotação, derrubando cobrança e pagamento por causa de um
+>   canal de notificação. Health responde *"consigo atender requisições?"*, não
+>   *"está tudo perfeito?"*.
+>
+> Lição de método: o primeiro teste do Basic Auth era **fraco** — mandava
+> credencial errada e conferia o 401, que acontece nos dois mundos. O que
+> distingue é o header `WWW-Authenticate` na resposta. Teste de segurança que
+> passa pelo motivo errado é pior que teste nenhum.
+
+> [!warning] Pendência que sobrou no workspace
+> `bank-api` continua sem git, sem README e sem `CLAUDE.md` — é agora o único
+> projeto nessa situação, o risco que este aqui tinha até hoje.
 
 ---
 

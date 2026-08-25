@@ -105,6 +105,18 @@ management:
       show-details: when-authorized
       probes:
         enabled: true
+  health:
+    # Desligado de propósito. O Spring Boot registra um MailHealthIndicator
+    # automaticamente quando há spring-boot-starter-mail, e ele abre conexão
+    # SMTP a cada consulta de /actuator/health. Consequência: com o servidor de
+    # e-mail fora do ar, o health vira DOWN (503) e o orquestrador tira a API
+    # de rotação — derrubando cobrança, pagamento e consulta, que não dependem
+    # de e-mail nenhum. Aqui o envio é assíncrono via outbox, que já reprocessa
+    # sozinho: SMTP indisponível é atraso de notificação, não indisponibilidade
+    # do serviço. Health check deve responder "consigo atender requisições?",
+    # não "está tudo perfeito?".
+    mail:
+      enabled: false
 
 springdoc:
   swagger-ui:

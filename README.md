@@ -76,13 +76,34 @@ de estados, emissão idempotente de cobranças, livro-razão de pagamentos,
 segurança com JWT e papéis, job diário com ShedLock, dashboard financeiro e
 outbox de e-mails.
 
-**175 testes verdes**: 104 unitários (~15 s, sem Docker) e 71 de integração
-(Postgres real via Testcontainers). Cobertura de 88,9%.
+**187 testes verdes**: 104 unitários (~15 s, sem Docker) e 83 de integração
+(Postgres real via Testcontainers). Cobertura de 89,2%.
 
 > A API exige autenticação. Crie o admin inicial via `BOOTSTRAP_ADMIN_PASSWORD`
 > e obtenha o token em `POST /api/v1/auth/login`.
 
 O roteiro das fases está no fim de [`docs/ARQUITETURA.md`](docs/ARQUITETURA.md).
+
+## Segurança
+
+`SegurancaHardeningIT` são 12 testes que **atacam** a API em vez de exercitar o
+caminho feliz: token forjado com outra chave, `alg: none`, token expirado,
+payload trocado mantendo a assinatura, escalada de papel, vazamento de hash na
+resposta e enumeração de usuários pelo login.
+
+Análise estática com Semgrep, sem instalar Python:
+
+```bash
+docker run --rm --mount "type=bind,source=E:\projetos\billing-platform,target=/src,readonly" semgrep/semgrep semgrep --metrics=off --config p/java --config p/security-audit --config p/secrets --config p/owasp-top-ten --config p/jwt --config p/dockerfile /src
+```
+
+Último scan (25/08/2026): **153 regras, 105 arquivos, 0 achados**.
+
+> `--config auto` não serve aqui: ele exige telemetria ligada, porque manda
+> dados do projeto ao semgrep.dev para escolher as regras. Os packs acima
+> cobrem o mesmo terreno sem isso. O que a auditoria encontrou — e por que
+> `httpBasic` foi removido e o health check parou de depender de SMTP — está na
+> seção 6.1 de [`docs/ARQUITETURA.md`](docs/ARQUITETURA.md).
 
 ## Modelo
 

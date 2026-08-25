@@ -93,6 +93,14 @@ geram "conserto" indevido:
 - **Assinatura não tem `PUT`.** Cancelar, suspender, trocar plano e
   reprecificar são endpoints separados — pré-condições, efeitos e (na fase 7)
   permissões diferentes.
+- **Nada de `httpBasic` nem `formLogin`.** O JWT é o único caminho de
+  autenticação. Basic estava ligado e não abria porta só porque o `JwtDecoder`
+  faz a auto-configuração do usuário padrão recuar — proteção por efeito
+  colateral, não por decisão. Removido na auditoria de 25/08.
+- **`management.health.mail.enabled: false`.** O `MailHealthIndicator` abre SMTP
+  a cada `/actuator/health`; com o servidor de e-mail fora, o health vira 503 e
+  o orquestrador tira a API de rotação por causa de um canal de notificação que
+  o outbox já reprocessa sozinho.
 - **`@EntityGraph` em `SubscriptionRepository`.** `customer` e `plan` são LAZY;
   sem o grafo, listar 20 assinaturas dispara 41 queries. Só vale porque são
   `...ToOne` — com coleção, join fetch + paginação pagina em memória.
@@ -105,12 +113,12 @@ para HTTP acontece só no `GlobalExceptionHandler`, em RFC 7807.
 
 ## Estado
 
-**As 10 fases estão implementadas e `mvn verify` está verde: 175 testes**
-(104 unitários + 71 de integração), cobertura **88,9%** com o gate de 80% ativo.
+**As 10 fases estão implementadas e `mvn verify` está verde: 187 testes**
+(104 unitários + 83 de integração), cobertura **89,2%** com o gate de 80% ativo.
 
 `mvn test` roda só os unitários; `mvn verify` inclui os `*IT`, que sobem
 Postgres via Testcontainers. Roteiro e decisões no `docs/ARQUITETURA.md`;
 visão geral em `docs/obsidian/Billing Platform.md`.
 
-Repositório iniciado localmente em 23/08/2026, **ainda sem primeiro commit e
-sem remoto** — publicar em `github.com/CaioCodes1/`.
+Publicado em 25/08/2026: **https://github.com/CaioCodes1/billing-platform**
+(público, branch `main`, primeiro commit `e58a211` com as 10 fases).

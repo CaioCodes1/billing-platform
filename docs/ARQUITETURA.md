@@ -239,6 +239,68 @@ Nenhum usuário é semeado por migration — credencial em migration é credenci
 versionada no git e igual em todo ambiente. O admin inicial é criado no boot a
 partir de `BOOTSTRAP_ADMIN_PASSWORD`, e só se a tabela estiver vazia.
 
+### 6.1 A auditoria de segurança (25/08/2026)
+
+Depois das 10 fases prontas, a segurança foi auditada de duas formas
+complementares: **testes que atacam a API** (`SegurancaHardeningIT`, 12 casos) e
+**análise estática** com Semgrep.
+
+Os testes cobrem token assinado com outra chave, token `alg: none`, token
+expirado com assinatura válida, payload trocado mantendo a assinatura, lixo no
+header `Authorization`, escalada de SUPPORT para ADMIN, vazamento de hash BCrypt
+na resposta, stacktrace em mensagem de erro e enumeração de usuários pelo login.
+Todos passaram — mas dois deles só passaram depois de expor problemas reais.
+
+**Achado 1 — `httpBasic` ligado numa API que só fala JWT.** O `SecurityConfig`
+tinha `.httpBasic(Customizer.withDefaults())`. A suspeita inicial era grave: sem
+`UserDetailsService`, o Spring Boot cria um usuário `user` em memória com senha
+aleatória, e com Basic ligado ele viraria uma **segunda porta de autenticação**,
+paralela ao JWT.
+
+A suspeita não se confirmou, e o porquê é a parte interessante: a
+auto-configuração recua quando existe um `JwtDecoder` — que existe, por causa do
+`oauth2ResourceServer`. Ou seja, a proteção vinha de um efeito colateral de
+outra biblioteca, não de uma decisão. `httpBasic` foi removido mesmo assim: ele
+adiciona um filtro que nunca autentica ninguém, anuncia `WWW-Authenticate: Basic`
+para quem sonda a API, e no dia em que alguém registrar um `UserDetailsService`
+por qualquer outro motivo a porta abre calada.
+
+> O primeiro teste que escrevi para isso era fraco: mandava `user:qualquer` e
+> conferia o 401. Só que credencial errada devolve 401 de qualquer jeito, com ou
+> sem Basic ligado — o teste passaria nos dois mundos. O que distingue é o
+> **desafio** na resposta. O teste atual verifica a ausência de
+> `WWW-Authenticate: Basic`, e um segundo teste trava a causa raiz afirmando que
+> não existe bean de `UserDetailsService` nem de `AuthenticationProvider`.
+
+**Achado 2 — o e-mail derrubava o health check.** `/actuator/health` devolvia
+**503** nos testes de integração. Não era falha de segurança, e sim o
+`MailHealthIndicator`, registrado automaticamente pelo starter de e-mail: ele
+abre conexão SMTP a cada consulta. Com o Mailpit fora do ar, o health inteiro
+vira DOWN.
+
+Em produção isso é pior do que parece: o orquestrador tira a API de rotação e
+derruba **cobrança, pagamento e consulta** — que não dependem de e-mail nenhum —
+porque um canal de notificação está indisponível. Como o envio aqui é assíncrono
+via outbox, que já reprocessa sozinho, SMTP fora significa atraso de
+notificação, não indisponibilidade do serviço. O indicador foi desligado em
+`application.yml`.
+
+A regra geral: um health check responde **"consigo atender requisições?"**, não
+"está tudo perfeito?". Dependência que não bloqueia o fluxo principal não entra
+no health.
+
+**Semgrep** rodou via container (sem instalar Python), **153 regras em 105
+arquivos: zero achados e zero erros de parse**. Dois detalhes que valem para
+quem repetir o scan:
+
+- `--config auto` **exige telemetria ligada** — ele envia dados do projeto ao
+  semgrep.dev para escolher as regras, e recusa rodar com `--metrics=off`. Aqui
+  foram usados packs explícitos (`p/java`, `p/security-audit`, `p/secrets`,
+  `p/owasp-top-ten`, `p/jwt`, `p/dockerfile`), que baixam regra do registro sem
+  enviar telemetria.
+- O `.semgrepignore` padrão **pula diretórios de teste**. Os 105 arquivos
+  escaneados são os 93 de `src/main/java` mais SQL, YAML e o `pom.xml`.
+
 ---
 
 ## 7. Camadas
