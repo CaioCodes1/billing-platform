@@ -80,6 +80,11 @@ contra Postgres real. Cobertura **89,2%**, com gate de 80% no build.
 >
 > 📄 Nota completa: [[Auditoria de Segurança]]
 
+> [!note] Quer aprender a construir isto?
+> [[Aula — Construindo uma Plataforma de Cobrança]] — o passo a passo do
+> raciocínio: em que ordem construir, que pergunta fazer em cada etapa, qual é
+> a solução ingênua e por que ela quebra.
+
 > [!warning] Pendência que sobrou no workspace
 > `bank-api` continua sem git, sem README e sem `CLAUDE.md` — é agora o único
 > projeto nessa situação, o risco que este aqui tinha até hoje.
