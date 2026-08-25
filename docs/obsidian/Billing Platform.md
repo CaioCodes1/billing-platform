@@ -9,8 +9,8 @@ tags:
   - billing
   - portfolio
 created: 2026-08-23
-updated: 2026-08-24
-status: 10-fases-concluidas
+updated: 2026-08-25
+status: concluido-e-auditado
 repo: E:/projetos/billing-platform
 stack: Java 21 · Spring Boot 3.5.3 · PostgreSQL 16
 ---
@@ -77,6 +77,8 @@ contra Postgres real. Cobertura **89,2%**, com gate de 80% no build.
 > credencial errada e conferia o 401, que acontece nos dois mundos. O que
 > distingue é o header `WWW-Authenticate` na resposta. Teste de segurança que
 > passa pelo motivo errado é pior que teste nenhum.
+>
+> 📄 Nota completa: [[Auditoria de Segurança]]
 
 > [!warning] Pendência que sobrou no workspace
 > `bank-api` continua sem git, sem README e sem `CLAUDE.md` — é agora o único
