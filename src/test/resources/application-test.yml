@@ -1,0 +1,24 @@
+# Perfil de teste. O datasource NAO aparece aqui: quem o define e o
+# @ServiceConnection do container do Testcontainers, em tempo de execucao.
+spring:
+  jpa:
+    hibernate:
+      ddl-auto: validate
+    open-in-view: false
+
+billing:
+  # O job nao roda sozinho nos testes: quem o dispara e o teste, chamando
+  # BillingRunner diretamente, para controlar quando e com que relogio.
+  scheduler:
+    enabled: false
+  timezone: America/Sao_Paulo
+  jwt:
+    secret: chave-apenas-de-teste-com-no-minimo-32-bytes-para-hs256
+    access-ttl: PT15M
+    refresh-ttl: P7D
+
+logging:
+  level:
+    org.testcontainers: WARN
+    com.github.dockerjava: WARN
+    org.flywaydb: INFO

@@ -1,0 +1,30 @@
+services:
+  db:
+    image: postgres:16-alpine
+    container_name: billing-db
+    environment:
+      POSTGRES_DB: billing
+      POSTGRES_USER: billing
+      POSTGRES_PASSWORD: billing
+    ports:
+      - "5433:5432"   # 5433 no host: o stockflow e o beacon ja usam a 5432
+    volumes:
+      - billing-db-data:/var/lib/postgresql/data
+    healthcheck:
+      # A app so sobe depois que o banco aceita conexao de verdade.
+      test: ["CMD-SHELL", "pg_isready -U billing -d billing"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  mailpit:
+    # Servidor SMTP de mentira com interface web: os e-mails da fase 10
+    # ficam visiveis em http://localhost:8025 sem mandar nada para fora.
+    image: axllent/mailpit:latest
+    container_name: billing-mail
+    ports:
+      - "1025:1025"
+      - "8025:8025"
+
+volumes:
+  billing-db-data:

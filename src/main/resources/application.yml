@@ -1,0 +1,141 @@
+spring:
+  application:
+    name: billing-platform
+
+  datasource:
+    url: ${DB_URL:jdbc:postgresql://localhost:5433/billing}
+    username: ${DB_USER:billing}
+    password: ${DB_PASSWORD:billing}
+    hikari:
+      maximum-pool-size: 10
+      # O job de faturamento processa em paginas e cada pagina abre transacao
+      # curta. Se o pool esgotar, e sinal de transacao segurada indevidamente.
+      connection-timeout: 5000
+
+  jpa:
+    hibernate:
+      # NUNCA update. Quem manda no schema e o Flyway; o Hibernate so confere
+      # se as entidades batem com o que as migrations criaram - e falha no
+      # boot se divergirem, em vez de alterar tabela por conta propria.
+      ddl-auto: validate
+    # Desliga o Open Session In View. Ligado (padrao do Boot), a sessao do
+    # Hibernate fica aberta ate a resposta ser serializada, o que esconde
+    # N+1 atras da renderizacao do JSON e segura conexao do pool.
+    open-in-view: false
+    properties:
+      hibernate:
+        jdbc:
+          time_zone: UTC
+          batch_size: 50
+        order_inserts: true
+        order_updates: true
+
+  flyway:
+    enabled: true
+    locations: classpath:db/migration
+
+  jackson:
+    default-property-inclusion: non_null
+    serialization:
+      write-dates-as-timestamps: false
+
+  data:
+    web:
+      pageable:
+        default-page-size: 20
+        # Teto real: sem isto o padrao e 2000, e um ?size=2000 numa base com
+        # milhares de clientes vira um jeito barato de derrubar a API.
+        max-page-size: 100
+
+  mail:
+    host: ${MAIL_HOST:localhost}
+    port: ${MAIL_PORT:1025}
+
+  threads:
+    virtual:
+      # Java 21: cada requisicao numa virtual thread. Como a carga aqui e
+      # dominada por espera de I/O do banco, e ganho direto de throughput.
+      enabled: true
+
+server:
+  port: ${SERVER_PORT:8080}
+  shutdown: graceful
+  error:
+    include-stacktrace: never
+    include-message: never
+
+# ---------------------------------------------------------------------
+# Parametros de negocio. Ficam aqui, e nao no codigo, porque sao decisao
+# comercial: mudar o prazo de suspensao nao pode exigir recompilar.
+# ---------------------------------------------------------------------
+billing:
+  # Todo calculo de data do ciclo usa este fuso, nunca o do servidor.
+  timezone: America/Sao_Paulo
+  scheduler:
+    enabled: true
+    # 03:00 no fuso configurado: janela de baixa carga e ja depois da
+    # virada do dia, para que "vencido hoje" esteja correto.
+    cron: "0 0 3 * * *"
+  invoice:
+    generate-days-ahead: 5    # emite a fatura N dias antes do inicio do periodo
+    due-days-after-issue: 10  # prazo de pagamento
+  dunning:
+    suspend-after-days: 15    # OVERDUE ha N dias -> assinatura SUSPENDED
+    cancel-after-days: 30     # SUSPENDED ha N dias -> CANCELLED
+  jwt:
+    # O default existe só para o `mvn spring-boot:run` subir sem configuração.
+    # O perfil prod recusa o boot se esta chave continuar sendo a padrão —
+    # ver SecurityConfig#validarSegredoEmProducao.
+    secret: ${JWT_SECRET:desenvolvimento-apenas-troque-esta-chave-em-producao-32b}
+    # Access token curto porque é stateless: não há como invalidá-lo antes de
+    # expirar. Quem sustenta a sessão é o refresh, esse sim revogável.
+    access-ttl: ${JWT_ACCESS_TTL:PT15M}
+    refresh-ttl: ${JWT_REFRESH_TTL:P7D}
+  bootstrap:
+    admin-email: ${BOOTSTRAP_ADMIN_EMAIL:}
+    admin-password: ${BOOTSTRAP_ADMIN_PASSWORD:}
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics,prometheus
+  endpoint:
+    health:
+      show-details: when-authorized
+      probes:
+        enabled: true
+
+springdoc:
+  swagger-ui:
+    path: /docs
+    operations-sorter: method
+
+logging:
+  level:
+    root: INFO
+    com.caiocodes.billing: DEBUG
+
+---
+# =====================================================================
+# Perfil de producao
+# =====================================================================
+spring:
+  config:
+    activate:
+      on-profile: prod
+
+  jpa:
+    properties:
+      hibernate:
+        format_sql: false
+
+logging:
+  level:
+    root: WARN
+    com.caiocodes.billing: INFO
+  structured:
+    format:
+      # Log em JSON no formato ECS (Elastic Common Schema). Nativo desde o
+      # Boot 3.4 - nao precisa de logstash-encoder nem logback.xml na mao.
+      console: ecs
